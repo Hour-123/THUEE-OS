@@ -1,0 +1,737 @@
+\documentclass[12pt, a4paper, oneside]{ctexart}
+\usepackage{float, amsmath, amsthm, amssymb, appendix, bm, graphicx, hyperref, mathrsfs, listings, xcolor, makecell, adjustbox}
+
+\title{\textbf{论文标题}}  
+\author{黄嘉浩 \quad 电子工程系 \quad 2022010666}
+\date{\today}
+\linespread{1.5}
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{corollary}[theorem]{推论}
+\newtheorem{example}[theorem]{例}
+\newtheorem{proposition}[theorem]{命题}
+\renewcommand{\abstractname}{\Large\textbf{摘要}}
+
+\lstset{
+    basicstyle=\scriptsize, % Change font size to footnotesize
+    breaklines,%自动换行
+    columns=flexible,%不随便添加空格,只在已经有空格的地方添加空格,
+    numbers=left, % 显示行号
+    numberstyle=\tiny, % 行号字体
+    keywordstyle=\color{blue!70}, % 关键字颜色
+    commentstyle=\color{red!50!green!50!blue!50}, % 注释颜色
+    frame=shadowbox, % 为代码块添加阴影框
+    rulesepcolor=\color{red!20!green!20!blue!20}, % 阴影框颜色
+    escapeinside=``, % 允许在代码块中使用 LaTeX 命令
+    xleftmargin=0em, xrightmargin=0em, aboveskip=1em, % 设置代码块的边距
+    framexleftmargin=2em % 阴影框左边距
+} 
+
+\begin{document}
+
+\begin{titlepage}
+    \vspace*{\fill}  % 顶部留白
+    \begin{center}
+        \fontsize{32}{18}\selectfont\textbf{银行家算法} \\
+        \vspace{0.5cm}
+        \fontsize{20}{18}\selectfont{\textbf{——《操作系统》课程实验四：}} \\
+        \vspace{0.5cm}
+        \fontsize{20}{18}\selectfont{\textbf{处理机调度问题}} \\
+
+        \vspace{2cm}
+        \fontsize{18}{18}\selectfont\textbf{黄嘉浩 \quad 无27 \quad 2022010666}  \\
+        \vspace{0.5cm}
+        \fontsize{18}{18}\selectfont{huang-jh22@mails.tsinghua.edu.cn}  \\
+        \vspace{0.5cm}
+        \fontsize{18}{18}\selectfont{\today}\\
+    \end{center}
+    \vspace*{\fill}  % 底部留白
+\end{titlepage}
+
+% 目录
+\newpage
+\pagenumbering{Roman}
+\setcounter{page}{1}
+\tableofcontents
+
+% 正文
+\newpage
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\section{问题描述及实现要求}
+
+\textbf{问题描述}
+
+银行家算法是避免死锁的一种重要方法，将操作系统视为银行家，操作系统管理的资源
+视为银行家管理的资金，进程向操作系统请求分配资源即企业向银行申请贷款的过程。
+
+请根据银行家算法的思想，编写程序模拟实现动态资源分配，并能够有效避免死锁的发
+生。
+
+\textbf{实现要求}
+
+1. 对实现的算法通过流程图进行说明;
+
+2. 设计不少于三组测试样例，需包括资源分配成功和失败的情况；
+
+3. 能够展示系统资源占用和分配情况的变化及安全性检测的过程；
+
+4. 结合操作系统课程中银行家算法理论对实验结果进行分析，验证结果的正确性；
+
+5. 分析算法的鲁棒性及算法效率。
+
+\section{实验环境}
+
+\textbf{编程语言} \quad Python 3.12
+
+\textbf{编程环境} \quad Windows 11
+
+\section{设计思路及程序结构}
+
+\subsection{设计思路与核心流程}
+
+为了保证所有进程正常运行完成，在系统运行过程中，对进程提出的每一个（系统能够满足的）资源申请
+进行动态检查（安全性算法），并根据检查结果决定是否分配资源，若
+分配后系统可能发生死锁，则不予分配，否则予以分配。
+
+安全性算法的步骤是，遍历每个进程的需求资源量，判断当前系统的动态可分配资源是否满足该进程的需求量。
+若满足，则将该进程的资源分配给它，并将其状态改为完成状态（True），释放它所占有的资源；
+否则，继续遍历下一个进程。
+若所有进程都处于完成状态，则说明系统处于安全状态。否则，系统处于不安全状态。
+
+\textbf{核心流程}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{flowchart.png}
+    \caption{银行家算法核心流程}
+    \label{fig:flowchart}
+\end{figure}
+
+\subsection{程序结构与关键代码解释}
+
+银行家算法的数据结构共有四类，如下所示。
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.5} % Adjust row height for better readability
+    \setlength{\tabcolsep}{4pt} % Adjust column spacing
+
+    \adjustbox{max height=\textheight, max width=\textwidth}{%
+    \begin{tabular}{|c|l|}
+    \hline
+    \makecell{\textbf{类别}}      & \makecell{\textbf{功能}} \\ \hline
+    \makecell{可利用资源向量\\available} & \makecell{含有m个元素的数组，\\其中每个元素代表一类可利用资源的数目}     \\ \hline
+    \makecell{最大需求矩阵\\max}        & \makecell{n*m矩阵，\\表示n个进程的每一个对m类资源的最大需求}       \\ \hline
+    \makecell{分配矩阵\\allocation}   & \makecell{n*m矩阵，\\表示每个进程已分配的每类资源的数目}          \\ \hline
+    \makecell{需求矩阵\\need}         & \makecell{n*m矩阵，\\表示每个进程还需要各类资源数}             \\ \hline
+    \end{tabular}
+    }
+\end{table}
+
+\subsubsection{安全性算法}
+
+\begin{lstlisting}[language=Python, caption=安全性算法代码]
+def is_safe_state(self):
+    work = self.available.copy() #动态可分配资源
+    finish = [False] * self.num_processes # 是否有足够的资源分配给进程，初值为 false
+    safe_sequence = []
+    
+    while True:
+        found = False
+        for i in range(self.num_processes):
+            if not finish[i] and np.all(self.need[i] <= work):
+                work += self.allocation[i]
+                finish[i] = True
+                safe_sequence.append(i)
+                found = True
+                break
+        if not found:
+            break
+\end{lstlisting}
+
+该安全性算法的主要流程如下：
+
+\begin{enumerate}
+    \item 首先，复制当前可用资源向量 \texttt{available} 到临时变量 \texttt{work}，并初始化所有进程的完成标志 \texttt{finish} 为 \texttt{False}，表示所有进程都尚未完成。
+    \item 进入循环，每次循环尝试寻找一个尚未完成且其需求 \texttt{need[i]} 小于等于当前可用资源 \texttt{work} 的进程 $i$。
+    \item 如果找到这样的进程 $i$，则认为该进程可以顺利完成，将其分配的资源 \texttt{allocation[i]} 归还给系统（即加到 \texttt{work} 上），并将 \texttt{finish[i]} 置为 \texttt{True}，同时将该进程编号加入安全序列 \texttt{safe\_sequence}。
+    \item 如果本轮循环没有找到任何可以完成的进程（即 \texttt{found} 仍为 \texttt{False}），则跳出循环。
+    \item 最后，判断所有进程的 \texttt{finish} 是否都为 \texttt{True}。若是，则系统处于安全状态，并返回安全序列；否则，系统处于不安全状态。
+\end{enumerate}
+
+\subsubsection{资源申请算法}
+
+\begin{lstlisting}[language=Python, caption=资源申请算法代码]
+def request_resources(self, process_id, request): 
+    request = np.array(request)
+    
+    # 检查请求是否超过需求
+    if np.any(request > self.need[process_id]):
+        print(f"错误：进程 {process_id} 的请求超过了其最大需求")
+        return False
+        
+    # 检查请求是否超过可用资源
+    if np.any(request > self.available):
+        print(f"错误：进程 {process_id} 的请求超过了可用资源")
+        return False
+        
+    # 尝试分配资源
+    old_available = self.available.copy()
+    old_allocation = self.allocation.copy()
+    old_need = self.need.copy()
+    
+    self.available -= request
+    self.allocation[process_id] += request
+    self.need[process_id] -= request
+    
+    # 检查安全性
+    safe, sequence = self.is_safe_state()  
+\end{lstlisting}
+
+该资源申请算法的主要流程如下：
+
+\begin{enumerate}
+    \item 首先，将请求向量 \texttt{request} 转换为数组，方便后续计算。
+    \item 检查请求是否超过了该进程的最大需求（\texttt{need[process\_id] }）。如果超过，直接拒绝请求并返回 \texttt{False}。
+    \item 检查请求是否超过了当前系统可用资源（\texttt{available}）。如果超过，直接拒绝请求并返回 \texttt{False}。
+    \item 如果请求合法，尝试分配资源。为防止分配后系统进入不安全状态，先保存当前的 \texttt{available}、\texttt{allocation} 和 \texttt{need} 状态，便于回滚。
+    \item 执行资源分配操作：将请求的资源从 \texttt{available} 中减去，分配到对应进程的 \texttt{allocation}，并更新 \texttt{need}。
+    \item 调用前述安全性算法（\texttt{is\_safe\_state}）判断分配后系统是否安全。
+    \item 如果系统安全，则分配成功，返回 \texttt{True}；否则，回滚到分配前的状态，拒绝本次请求，返回 \texttt{False}。
+\end{enumerate}
+
+这样，便保证了每次资源分配都不会让系统进入不安全状态，从而有效避免死锁的发生。
+
+\section{程序运行情况}
+
+笔者设计了三组测试用例，分别展示了资源分配成功、资源分配失败（超过需求及超过可用资源导致不安全状态）和多资源类型的情况。
+
+\subsection{测试用例一：资源分配成功}
+
+\subsubsection{测试用例一分析}
+
+\textbf{基本信息：}
+
+\begin{itemize}
+    \item 进程数：5
+    \item 资源种类数：3
+    \item 总资源向量：\texttt{[10, 5, 7]}
+\end{itemize}
+
+\textbf{分配矩阵（allocation）：}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|ccc}
+        \hline
+        进程 & A & B & C \\
+        \hline
+        P0 & 0 & 1 & 0 \\
+        P1 & 2 & 0 & 0 \\
+        P2 & 3 & 0 & 2 \\
+        P3 & 2 & 1 & 1 \\
+        P4 & 0 & 0 & 2 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{最大需求矩阵（max）：}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|ccc}
+        \hline
+        进程 & A & B & C \\
+        \hline
+        P0 & 7 & 5 & 3 \\
+        P1 & 3 & 2 & 2 \\
+        P2 & 9 & 0 & 2 \\
+        P3 & 2 & 2 & 2 \\
+        P4 & 4 & 3 & 3 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{请求序列：}
+
+\begin{enumerate}
+    \item 进程1请求\texttt{[1, 0, 2]}
+    \item 进程4请求\texttt{[3, 3, 0]}
+    \item 进程0请求\texttt{[0, 2, 0]}
+\end{enumerate}
+
+% 你可以用如下格式展示每一步的分析过程
+\textbf{算法执行过程分析：}
+
+\begin{itemize}
+    \item 初始可用资源向量：\texttt{[3, 3, 2]}
+    \item 进程1请求\texttt{[1, 0, 2]}，满足需求且系统安全，分配成功，此时找到一条系统安全序列：\texttt{[1, 3, 0, 2, 4]}。
+    \item 分配后可用资源向量：\texttt{[2, 3, 0]}
+    \item 进程4请求\texttt{[3, 3, 0]}，请求超过可用资源，分配失败。
+    \item 进程0请求\texttt{[0, 2, 0]}，资源分配会导致不安全状态（死锁），分配失败。
+    \item 最终系统安全序列：\texttt{[1, 3, 0, 2, 4]}。
+\end{itemize}
+
+\subsubsection{测试用例一运行结果}
+
+\begin{lstlisting}[language=Python, caption=测试用例一运行结果]
+===== 测试用例 资源分配成功案例 =====
+
+-> 当前系统状态:
+可用资源: [3 3 2]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       1       0
+1       2       0       0
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       4       3
+1       1       2       2
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2, 4]
+
+进程 1 请求资源: [1, 0, 2]
+资源分配成功，安全序列为: [1, 3, 0, 2, 4]
+
+-> 当前系统状态:
+可用资源: [2 3 0]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       1       0
+1       3       0       2
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       4       3
+1       0       2       0
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2, 4]
+
+进程 4 请求资源: [3, 3, 0]
+错误：进程 4 的请求超过了可用资源
+
+-> 当前系统状态:
+可用资源: [2 3 0]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       1       0
+1       3       0       2
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       4       3
+1       0       2       0
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2, 4]
+
+进程 0 请求资源: [0, 2, 0]
+资源分配会导致不安全状态，请求被拒绝
+
+-> 当前系统状态:
+可用资源: [2 3 0]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       1       0
+1       3       0       2
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       4       3
+1       0       2       0
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2, 4]
+\end{lstlisting}
+
+最终，系统找到了安全序列 \texttt{[1, 3, 0, 2, 4]}，说明系统处于安全状态，这是符合前述分析的。
+
+\subsection{测试用例二：资源分配失败}
+
+\subsubsection{测试用例二分析}
+
+\textbf{基本信息：}
+\begin{itemize}
+    \item 进程数：5
+    \item 资源种类数：3
+    \item 总资源向量：\texttt{[10, 5, 7]}
+\end{itemize}
+
+\textbf{分配矩阵（allocation）：}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|ccc}
+        \hline
+        进程 & A & B & C \\
+        \hline
+        P0 & 0 & 4 & 0 \\
+        P1 & 2 & 0 & 0 \\
+        P2 & 3 & 0 & 2 \\
+        P3 & 2 & 1 & 1 \\
+        P4 & 0 & 0 & 2 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{最大需求矩阵（max）：}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|ccc}
+        \hline
+        进程 & A & B & C \\
+        \hline
+        P0 & 7 & 5 & 3 \\
+        P1 & 3 & 2 & 2 \\
+        P2 & 9 & 0 & 2 \\
+        P3 & 2 & 2 & 2 \\
+        P4 & 4 & 3 & 3 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{请求序列：}
+\begin{enumerate}
+    \item 进程1请求\texttt{[3, 0, 2]}
+    \item 进程4请求\texttt{[3, 0, 3]}
+    \item 进程0请求\texttt{[0, 0, 2]}
+\end{enumerate}
+
+\textbf{算法执行过程分析：}
+\begin{itemize}
+    \item 初始可用资源向量：\texttt{[3, 0, 2]}
+    \item 进程1请求\texttt{[3, 0, 2]}，请求量超过其最大需求\texttt{[1, 2, 2]}，系统拒绝分配。
+    \item 进程4请求\texttt{[3, 0, 3]}，请求量超过当前可用资源，系统拒绝分配。
+    \item 进程0请求\texttt{[0, 0, 2]}，虽然请求量合法且不超过可用资源，但分配后系统进入不安全状态，系统拒绝分配。
+    \item 最终系统状态未发生变化，系统始终处于不安全状态。
+\end{itemize}
+
+\subsubsection{测试用例二运行结果}
+\begin{lstlisting}[language=Python, caption=测试用例二运行结果]
+===== 测试用例 资源分配失败案例 =====
+
+-> 当前系统状态:
+可用资源: [3 0 2]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       4       0
+1       2       0       0
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       1       3
+1       1       2       2
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于不安全状态
+
+进程 1 请求资源: [3, 0, 2]
+错误：进程 1 的请求超过了其最大需求
+
+-> 当前系统状态:
+可用资源: [3 0 2]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       4       0
+1       2       0       0
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       1       3
+1       1       2       2
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于不安全状态
+
+进程 4 请求资源: [3, 0, 3]
+错误：进程 4 的请求超过了其最大需求
+
+-> 当前系统状态:
+可用资源: [3 0 2]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       4       0
+1       2       0       0
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       1       3
+1       1       2       2
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于不安全状态
+
+进程 0 请求资源: [0, 0, 2]
+资源分配会导致不安全状态，请求被拒绝
+
+-> 当前系统状态:
+可用资源: [3 0 2]
+
+分配矩阵:
+进程    资源0   资源1   资源2
+0       0       4       0
+1       2       0       0
+2       3       0       2
+3       2       1       1
+4       0       0       2
+
+需求矩阵:
+进程    资源0   资源1   资源2
+0       7       1       3
+1       1       2       2
+2       6       0       0
+3       0       1       1
+4       4       3       1
+
+系统处于不安全状态
+\end{lstlisting}
+
+最终，系统无法找到安全序列，这是符合前述分析的。
+
+\subsection{测试用例三：多资源类型}
+
+\subsubsection{测试用例三分析}
+
+\textbf{基本信息：}
+\begin{itemize}
+    \item 进程数：4
+    \item 资源种类数：4
+    \item 总资源向量：\texttt{[10, 5, 7, 8]}
+\end{itemize}
+
+\textbf{分配矩阵（allocation）：}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|cccc}
+        \hline
+        进程 & A & B & C & D \\
+        \hline
+        P0 & 0 & 1 & 1 & 0 \\
+        P1 & 2 & 0 & 0 & 1 \\
+        P2 & 3 & 0 & 2 & 0 \\
+        P3 & 2 & 1 & 1 & 2 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{最大需求矩阵（max）：}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|cccc}
+        \hline
+        进程 & A & B & C & D \\
+        \hline
+        P0 & 7 & 5 & 3 & 2 \\
+        P1 & 3 & 2 & 2 & 2 \\
+        P2 & 9 & 0 & 2 & 2 \\
+        P3 & 2 & 2 & 2 & 4 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\textbf{请求序列：}
+\begin{enumerate}
+    \item 进程1请求\texttt{[1, 0, 1, 0]}
+    \item 进程3请求\texttt{[0, 1, 0, 1]}
+    \item 进程2请求\texttt{[2, 0, 0, 1]}
+\end{enumerate}
+
+\textbf{分析过程：}
+\begin{itemize}
+    \item 初始可用资源向量：\texttt{[3, 3, 3, 5]}
+    \item 进程1请求\texttt{[1, 0, 1, 0]}，当前可用资源满足其需求，资源分配后系统存在安全序列\texttt{[1, 3, 0, 2]}，资源分配成功。
+    \item 分配后可用资源向量：\texttt{[2, 3, 2, 5]}
+    \item 进程3请求\texttt{[0, 1, 0, 1]}，当前可用资源满足其需求，资源分配后系统存在安全序列\texttt{[1, 3, 0, 2]}，资源分配成功。
+    \item 分配后可用资源向量：\texttt{[2, 2, 2, 4]}
+    \item 进程2请求\texttt{[2, 0, 0, 1]}，当前可用资源满足其需求，资源分配后系统存在安全序列\texttt{[1, 3, 0, 2]}，资源分配成功。
+    \item 分配后可用资源向量：\texttt{[0, 2, 2, 3]}
+    \item 最终系统安全序列：\texttt{[1, 3, 0, 2]}。
+\end{itemize}
+
+\subsubsection{测试用例三运行结果}
+
+\begin{lstlisting}[language=Python, caption=测试用例三运行结果]
+===== 测试用例 多资源类型案例 =====
+
+-> 当前系统状态:
+可用资源: [3 3 3 5]
+
+分配矩阵:
+进程    资源0   资源1   资源2   资源3
+0       0       1       1       0
+1       2       0       0       1
+2       3       0       2       0
+3       2       1       1       2
+
+需求矩阵:
+进程    资源0   资源1   资源2   资源3
+0       7       4       2       2
+1       1       2       2       1
+2       6       0       0       2
+3       0       1       1       2
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2]
+
+进程 1 请求资源: [1, 0, 1, 0]
+资源分配成功，安全序列为: [1, 3, 0, 2]
+
+-> 当前系统状态:
+可用资源: [2 3 2 5]
+
+分配矩阵:
+进程    资源0   资源1   资源2   资源3
+0       0       1       1       0
+1       3       0       1       1
+2       3       0       2       0
+3       2       1       1       2
+
+需求矩阵:
+进程    资源0   资源1   资源2   资源3
+0       7       4       2       2
+1       0       2       1       1
+2       6       0       0       2
+3       0       1       1       2
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2]
+
+进程 3 请求资源: [0, 1, 0, 1]
+资源分配成功，安全序列为: [1, 3, 0, 2]
+
+-> 当前系统状态:
+可用资源: [2 2 2 4]
+
+分配矩阵:
+进程    资源0   资源1   资源2   资源3
+0       0       1       1       0
+1       3       0       1       1
+2       3       0       2       0
+3       2       2       1       3
+
+需求矩阵:
+进程    资源0   资源1   资源2   资源3
+0       7       4       2       2
+1       0       2       1       1
+2       6       0       0       2
+3       0       0       1       1
+
+系统处于安全状态，安全序列为: [1, 3, 0, 2]
+
+进程 2 请求资源: [2, 0, 0, 1]
+资源分配成功，安全序列为: [1, 3, 2, 0]
+
+-> 当前系统状态:
+可用资源: [0 2 2 3]
+
+分配矩阵:
+进程    资源0   资源1   资源2   资源3
+0       0       1       1       0
+1       3       0       1       1
+2       5       0       2       1
+3       2       2       1       3
+
+需求矩阵:
+进程    资源0   资源1   资源2   资源3
+0       7       4       2       2
+1       0       2       1       1
+2       4       0       0       1
+3       0       0       1       1
+
+系统处于安全状态，安全序列为: [1, 3, 2, 0]
+\end{lstlisting}
+
+最终，系统找到了安全序列 \texttt{[1, 3, 2, 0]}，说明系统处于安全状态，这是符合前述分析的。
+
+\section{算法鲁棒性及效率分析}
+
+本算法在资源请求时，首先检查请求是否超过进程的最大需求（need）和系统当前可用资源（available）。若请求不合法，立即拒绝，防止非法操作导致系统异常。这保证了算法对异常输入的容错能力。
+
+在尝试分配资源后，算法会调用安全性检测（is\_safe\_state）。若检测到系统进入不安全状态，会将所有资源分配操作回滚到分配前的状态，确保系统始终处于安全状态。这一机制极大增强了算法对潜在死锁和资源分配错误的防护能力。
+
+对于超过最大需求或可用资源的请求，算法会输出明确的错误提示，便于用户定位问题。
+
+总之，在输入合法性检查、资源分配回滚和错误提示等方面，算法展现了较强的鲁棒性。
+
+\textbf{时间复杂度分析}
+
+在每次资源请求时，算法需要进行两步主要操作：
+（1）合法性检查（与进程数和资源种类线性相关）；
+（2）安全性检测（is\_safe\_state），其核心是尝试找到一个安全序列。
+安全性检测的最坏情况是每次都只能完成一个进程，总共需要遍历 $n$ 次（$n$ 为进程数），每次判断需遍历所有进程和资源，因此时间复杂度为 $O(n^2 \cdot m)$，其中 $m$ 为资源种类数。
+整体来看，单次资源请求的复杂度为 $O(n^2 \cdot m)$，对于中小规模系统（进程数和资源种类不大）是可以接受的。
+
+\textbf{空间复杂度分析}
+
+算法主要维护分配矩阵、最大需求矩阵、需求矩阵和可用资源向量，空间复杂度为 $O(n \cdot m)$。
+
+\section{思考题}
+
+\textbf{Q1} \quad 银行家算法在实现过程中需注意资源分配的哪些事项才能避免死锁？
+
+\begin{enumerate} 
+    \item \textbf{请求合法性检查}：每次进程请求资源时，必须首先判断请求量是否超过其最大需求（need）以及当前系统可用资源（available）。只有在请求合法且系统有足够资源时，才考虑分配。 
+    \item \textbf{安全性检测}：在资源实际分配前，需通过安全性算法（is\_safe\_state）模拟分配，判断分配后系统是否仍处于安全状态。只有在分配后系统依然安全时，才真正分配资源。 
+    \item \textbf{状态回滚机制}：若分配后系统不安全，必须将所有资源分配操作回滚到分配前的状态，确保系统不会进入不安全状态。 
+    \item \textbf{动态更新数据结构}：每次资源分配或释放后，需及时更新分配矩阵（allocation）、需求矩阵（need）和可用资源向量（available），保证数据的准确性。 
+\end{enumerate}
+
+只有严格遵循上述事项，才能确保银行家算法在动态资源分配过程中有效避免死锁，保证系统安全运行。
+
+\section{实验总结}
+
+本实验实现了银行家算法，模拟了资源分配和安全性检测的过程。通过多组测试用例验证了算法的正确性和鲁棒性。
+实验中，笔者深入理解了银行家算法的核心思想和实现细节，并掌握了如何在实际系统中应用该算法来避免死锁和确保系统安全。
+
+总体来看，实验过程进展顺利。本实验采用的银行家算法步骤参考了操作系统课件，遇到的问题主要集中在算法实现的细节上，如资源请求的合法性检查和安全性检测的实现。
+由于 Python numpy 库直接支持矩阵向量乘法（MVM）运算，故笔者采用 Python 语言编写了本实验。
+通过不断调试和测试，最终成功实现了预期功能。
+
+最后，感谢老师与助教的辛勤付出，使得笔者获益匪浅。再次对老师和助
+教表示衷心感谢！
+\end{document}
